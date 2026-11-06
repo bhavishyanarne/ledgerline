@@ -13,7 +13,7 @@ This log records five distinct instances where AI generation produced flawed, vu
   `better-sqlite3` relies on native C++ addons compiled via `node-gyp`. When installing on Node v22.17.1, `node-gyp` attempted to download release header archives from nodejs.org, which failed with `ECONNRESET` and native compiler incompatibilities. For an assessment submission requiring clean cloning and reliable instant deployment on any evaluation environment, introducing brittle native build toolchains introduces severe operational risk.
 * **What I did instead**:
   Pivoted to Node 22's built-in `node:sqlite` (`DatabaseSync`). It provides native SQLite3 integration with zero npm dependencies, zero C++ compilation steps, out-of-the-box cross-platform portability (Windows, macOS, Linux, Docker, Render), and synchronous ACID transaction support with `BEGIN IMMEDIATE`.
-* **Commit**: `feat(db): migrate to zero-dependency node:sqlite DatabaseSync architecture`
+* **Commit**: [`b736c67`](https://github.com/bhavishyanarne/ledgerline/commit/b736c67) — `feat(core): initial project scaffolding and zero-dependency package configuration`
 
 ---
 
@@ -42,7 +42,7 @@ This log records five distinct instances where AI generation produced flawed, vu
   CONSTRAINT chk_customer_running_balance CHECK (account_id = 'acc_system_clearing' OR running_balance >= 0)
   ```
   This strictly preserves the $0.00 floor on all customer-facing accounts while maintaining double-entry mathematical conservation.
-* **Commit**: `fix(ledger): scope non-negative balance constraint to non-system accounts for double-entry settlement`
+* **Commit**: [`8e67855`](https://github.com/bhavishyanarne/ledgerline/commit/8e67855) — `feat(db): implement double-entry SQLite schema with append-only triggers and WAL mode`
 
 ---
 
@@ -70,7 +70,7 @@ This log records five distinct instances where AI generation produced flawed, vu
      - Check `status`: If `'IN_PROGRESS'`, return `409 Conflict` (`IDEMPOTENCY_IN_FLIGHT`).
      - If `'COMPLETED'`, return the cached status and payload with `is_duplicate: true`.
   4. Only commit `COMPLETED` once the database transaction commits.
-* **Commit**: `feat(idempotency): add atomic in-flight reservation and payload hash verification`
+* **Commit**: [`19763d6`](https://github.com/bhavishyanarne/ledgerline/commit/19763d6) — `feat(services): implement atomic ledger movements, SHA-256 hash chaining, and idempotency engine`
 
 ---
 
@@ -101,7 +101,7 @@ This log records five distinct instances where AI generation produced flawed, vu
   }
   ```
   Verified with automated tests in `test/04_authorization.test.js`.
-* **Commit**: `fix(auth): standardize user identifier across JWT claims and account ownership checks`
+* **Commit**: [`6814d8f`](https://github.com/bhavishyanarne/ledgerline/commit/6814d8f) — `feat(api): add REST routes for transfers, statements, reconciliation proofs, and RBAC`
 
 ---
 
@@ -129,4 +129,4 @@ This log records five distinct instances where AI generation produced flawed, vu
   In SQLite, `PRAGMA foreign_keys = OFF` disables foreign key checks, but does NOT disable active SQL triggers! Consequently, running `DELETE FROM ledger_entries;` threw `ERR_SQLITE_ERROR: LEDGER_IMMUTABLE: ledger_entries cannot be deleted once written`, crashing the test runner during test isolation.
 * **What I did instead**:
   Updated the reset mechanism to drop tables completely (`DROP TABLE IF EXISTS ...`) and recreate the schema afresh via `initDb()`. Dropping the table drops the associated immutability triggers atomically, allowing a fresh ledger state for testing without weakening the append-only guarantee in runtime application code.
-* **Commit**: `fix(test): cleanly recreate schema on test reset avoiding immutable trigger aborts`
+* **Commit**: [`76cecd7`](https://github.com/bhavishyanarne/ledgerline/commit/76cecd7) — `test: add comprehensive automated test suite for money conservation, concurrency race resistance, idempotency replays, and authorization`
