@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LedgerLine — Money Movement with a Ledger You Can Prove</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header & Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="logo-icon">⚖️</div>
+        <div>
+          <h1 class="brand-title">LedgerLine</h1>
+          <p class="brand-tagline">Money movement with a ledger you can prove</p>
+        </div>
+      </div>
+
+      <!-- Quick Switcher for Assessment Evaluators -->
+      <div class="quick-switcher">
+        <span class="switcher-label">Switch Persona:</span>
+        <button class="persona-btn active" data-role="admin" onclick="switchPersona('admin')">👑 Admin</button>
+        <button class="persona-btn" data-role="alice" onclick="switchPersona('alice')">👤 Alice (Holder)</button>
+        <button class="persona-btn" data-role="bob" onclick="switchPersona('bob')">👤 Bob (Holder)</button>
+        <button class="persona-btn" data-role="auditor" onclick="switchPersona('auditor')">🔍 Auditor (Read-Only)</button>
+      </div>
+
+      <div class="user-profile">
+        <div class="user-badge">
+          <span id="user-role-badge" class="role-pill admin">ADMIN</span>
+          <span id="user-display-name">System Administrator</span>
+        </div>
+        <button class="btn-logout" onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Proof & Conservation Status Banner -->
+  <section class="proof-bar">
+    <div class="proof-container">
+      <div class="proof-pill success" id="pill-conservation">
+        <span class="pill-dot"></span>
+        <span class="pill-text"><strong>Conservation Invariant:</strong> <span id="proof-status-text">Verified (Δ = $0.00)</span></span>
+      </div>
+      <div class="proof-pill success" id="pill-double-entry">
+        <span class="pill-dot"></span>
+        <span class="pill-text"><strong>Double-Entry:</strong> Σ Debits == Σ Credits</span>
+      </div>
+      <div class="proof-pill success" id="pill-hash-chain">
+        <span class="pill-dot"></span>
+        <span class="pill-text"><strong>SHA-256 Ledger Chain:</strong> <span id="proof-chain-text">Valid (Untampered)</span></span>
+      </div>
+      <button class="btn-verify" onclick="refreshReconciliation(true)">⚡ Run Live Audit Proof</button>
+    </div>
+  </section>
+
+  <!-- Main Application Container -->
+  <main class="app-main">
+    <div class="grid-layout">
+      
+      <!-- Left Column: Accounts & Money Movement -->
+      <div class="left-col">
+        <!-- Accounts Overview Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Accounts Overview</h2>
+            <button class="btn-sm btn-outline" id="btn-create-account" onclick="openCreateAccountModal()">+ New Account</button>
+          </div>
+          <div id="accounts-container" class="accounts-list">
+            <div class="loading-state">Loading accounts...</div>
+          </div>
+        </div>
+
+        <!-- Transfer / Movement Card -->
+        <div class="card" id="movement-card">
+          <div class="card-header">
+            <h2 class="card-title">Initiate Money Movement</h2>
+            <div class="tab-group">
+              <button class="tab-btn active" onclick="switchActionTab('transfer')">Transfer</button>
+              <button class="tab-btn" onclick="switchActionTab('deposit')">Deposit</button>
+              <button class="tab-btn" onclick="switchActionTab('withdraw')">Withdraw</button>
+            </div>
+          </div>
+
+          <form id="movement-form" onsubmit="handleMovementSubmit(event)">
+            <div id="transfer-from-group" class="form-group">
+              <label for="from-account-select">From Account (Debited)</label>
+              <select id="from-account-select" class="form-control" required></select>
+            </div>
+
+            <div id="transfer-to-group" class="form-group">
+              <label for="to-account-select">To Account (Credited)</label>
+              <select id="to-account-select" class="form-control" required></select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="amount-input">Amount ($ USD)</label>
+                <div class="input-prefix-wrapper">
+                  <span class="input-prefix">$</span>
+                  <input type="number" id="amount-input" class="form-control with-prefix" placeholder="100.00" step="0.01" min="0.01" required>
+                </div>
+              </div>
+              <div class="form-group flex-2">
+                <label for="desc-input">Description / Memo</label>
+                <input type="text" id="desc-input" class="form-control" placeholder="Vendor consulting invoice" required>
+              </div>
+            </div>
+
+            <!-- Idempotency Key Section -->
+            <div class="form-group">
+              <div class="label-with-action">
+                <label for="idempotency-key-input">Idempotency-Key (Exactly-Once Guard)</label>
+                <button type="button" class="btn-link" onclick="generateNewIdempotencyKey()">↻ New UUID</button>
+              </div>
+              <input type="text" id="idempotency-key-input" class="form-control font-mono" required>
+              <small class="field-hint">Replaying with this exact key will return cached result without moving money twice.</small>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="btn-submit-movement" class="btn btn-primary flex-1">Execute Movement</button>
+              <button type="button" class="btn btn-warning" onclick="simulateDoubleClick()" title="Fires 2 rapid requests simultaneously with the same idempotency key">
+                ⚡ Simulate Double-Click (2x)
+              </button>
+            </div>
+          </form>
+          <div id="movement-feedback" class="feedback-banner"></div>
+        </div>
+
+        <!-- Concurrency & Race Condition Attack Simulator -->
+        <div class="card race-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title text-danger">🛡️ Concurrency Race Attack Simulator</h2>
+              <p class="card-subtitle">Fire 10 simultaneous withdrawal requests to test race conditions</p>
+            </div>
+          </div>
+          <div class="race-content">
+            <p class="race-explainer">
+              Attempts to exploit read-modify-write timing windows by launching <strong>10 concurrent requests</strong>
+              of <strong>$100.00 each</strong> ($1,000 total) against an account. Proves balances never drop below zero!
+            </p>
+            <div class="race-controls">
+              <select id="race-target-account" class="form-control flex-1"></select>
+              <button type="button" id="btn-run-race" class="btn btn-danger" onclick="runConcurrentRaceAttack()">
+                💥 Fire 10 Concurrent Race Requests
+              </button>
+            </div>
+            <div id="race-results" class="race-results-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Per-Account Statement & Refusal Audit Log -->
+      <div class="right-col">
+        <div class="card statement-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Per-Account Statement & Audit Trail</h2>
+              <p class="card-subtitle" id="statement-subtitle">Select an account to inspect debits, credits, and refused attempts</p>
+            </div>
+            <button class="btn-sm btn-outline" onclick="loadSelectedStatement()">↻ Refresh</button>
+          </div>
+
+          <div id="statement-summary" class="statement-summary-bar">
+            <div><strong>Account:</strong> <span id="stmt-acc-name">-</span> (<span id="stmt-acc-number">-</span>)</div>
+            <div><strong>Running Balance:</strong> <span id="stmt-acc-balance" class="balance-pill">$0.00</span></div>
+          </div>
+
+          <div class="table-container">
+            <table class="statement-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Running Bal</th>
+                  <th>Initiator</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="statement-tbody">
+                <tr><td colspan="7" class="empty-state">Select an account to view statement</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- System Audit & Reconciliation Proof Card -->
+        <div class="card proof-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">System Invariant & Cryptographic Proof</h2>
+              <p class="card-subtitle">Live mathematical conservation and SHA-256 block hash chain</p>
+            </div>
+            <button class="btn-sm btn-outline" onclick="refreshReconciliation(false)">Verify Now</button>
+          </div>
+          <div id="reconciliation-panel" class="recon-grid">
+            <div class="recon-metric">
+              <span class="metric-label">Total User Balances</span>
+              <span class="metric-val" id="rec-user-bal">$0.00</span>
+            </div>
+            <div class="recon-metric">
+              <span class="metric-label">Total External Deposits</span>
+              <span class="metric-val text-success" id="rec-deposits">$0.00</span>
+            </div>
+            <div class="recon-metric">
+              <span class="metric-label">Total External Withdrawals</span>
+              <span class="metric-val text-warning" id="rec-withdrawals">$0.00</span>
+            </div>
+            <div class="recon-metric">
+              <span class="metric-label">Mathematical Discrepancy</span>
+              <span class="metric-val text-accent" id="rec-discrepancy">$0.00</span>
+            </div>
+          </div>
+          <div class="hash-chain-box">
+            <div class="chain-header">
+              <span>Latest Verified Block Hash:</span>
+              <span class="badge-pill" id="rec-blocks-count">0 Blocks</span>
+            </div>
+            <div class="chain-hash font-mono" id="rec-latest-hash">0000000000000000000000000000000000000000000000000000000000000000</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Create Account Modal -->
+  <div id="create-account-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Create New Account</h3>
+        <button class="btn-close" onclick="closeCreateAccountModal()">×</button>
+      </div>
+      <form onsubmit="handleCreateAccountSubmit(event)">
+        <div class="form-group">
+          <label for="new-acc-name">Account Name</label>
+          <input type="text" id="new-acc-name" class="form-control" placeholder="e.g. Treasury Operations" required>
+        </div>
+        <div class="form-group" id="owner-select-group">
+          <label for="new-acc-owner">Account Owner</label>
+          <select id="new-acc-owner" class="form-control"></select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-outline" onclick="closeCreateAccountModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div>LedgerLine — Strict Double-Entry Core with Cryptographic Proof</div>
+      <div>Designed & Built for Integrity, Concurrency & Idempotency Compliance</div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
