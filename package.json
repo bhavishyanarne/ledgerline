@@ -1,0 +1,35 @@
+{
+  "name": "ledgerline",
+  "version": "1.0.0",
+  "description": "Money movement with a double-entry ledger you can prove",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node src/db/seed.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:verbose": "node --test --test-concurrency=1 --test-reporter=spec test/*.test.js"
+  },
+  "keywords": [
+    "ledger",
+    "double-entry",
+    "idempotency",
+    "concurrency",
+    "fintech",
+    "audit-trail"
+  ],
+  "author": "bhavishyanarne",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  }
+}
