@@ -4,6 +4,9 @@
   "description": "Money movement with a double-entry ledger you can prove",
   "main": "server.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
